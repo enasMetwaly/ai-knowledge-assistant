@@ -13,3 +13,15 @@ services:
       - ./backend/chroma_db:/app/chroma_db
     environment:
       - PYTHONUNBUFFERED=1
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    environment:
+      - NEXT_PUBLIC_BACKEND_URL=http://localhost:8000
