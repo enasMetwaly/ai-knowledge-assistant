@@ -1,0 +1,66 @@
+# ======================
+# Python / Backend
+# ======================
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+*.egg-info/
+.installed.cfg
+*.egg
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.pyre/
+venv/
+ENV/
+.env
+.env.local
+
+# FastAPI / Uploads (optional: safe to ignore dev uploads)
+backend/uploads/
+# backend/chroma_db/       # ← remove this line if you want to commit sample embeddings
+
+# ======================
+# Node.js / Frontend
+# ======================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+.npm
+.yarn
+next-env.d.ts
+.next/
+out/
+build/
+dist/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ======================
+# OS / Editor
+# ======================
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo
