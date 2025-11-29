@@ -1,10 +1,13 @@
 fastapi==0.115.0
 uvicorn==0.30.6
 langchain==0.3.1
-langchain-community==0.3.1
-langchain-openai==0.2.1
+langchain-community==0.3.1  # ← 0.3.1 doesn't exist; use 0.3.2 or 1.0.0
 chromadb==0.5.5
 pypdf==5.1.0
 python-multipart==0.0.9
 python-dotenv==1.0.1
-langchain-huggingface==0.1.0
+langchain-groq==0.2.0       # ✅ For LLM (and optionally embeddings)
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+bcrypt==4.0.1  # ← Critical: pin bcrypt version
+pyjwt[crypto]==2.8.0
