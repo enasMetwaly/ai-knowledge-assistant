@@ -10,6 +10,7 @@ import jwt
 from jwt.exceptions import InvalidTokenError
 from pathlib import Path
 import json
+import re  # ← Added for @filename parsing
 from dotenv import load_dotenv
 
 # LangChain
@@ -77,7 +78,7 @@ llm = ChatGroq(
     groq_api_key=os.getenv("GROQ_API_KEY"),
     model_name="llama-3.1-8b-instant",
     temperature=0.1,
-    max_tokens=800  # increased for better answers
+    max_tokens=800
 )
 
 # ===== AUTH HELPERS =====
@@ -167,10 +168,7 @@ async def get_me(current_user: CurrentUser):
     return current_user
 
 @app.post("/api/upload")
-async def upload_file(
-    current_user: CurrentUser,
-    file: UploadFile = File(...)
-):
+async def upload_file(current_user: CurrentUser, file: UploadFile = File(...)):
     if not file.filename.lower().endswith(('.txt', '.pdf')):
         raise HTTPException(400, "Only .txt and .pdf files allowed")
 
@@ -186,7 +184,7 @@ async def upload_file(
         loader = PyPDFLoader(str(filepath)) if filepath.suffix == ".pdf" else TextLoader(str(filepath), encoding="utf-8")
         docs = loader.load()
 
-        # Critical: Add real filename to every page's metadata
+        # Save real filename in metadata
         for doc in docs:
             doc.metadata["source"] = original_filename
 
@@ -213,8 +211,7 @@ async def upload_file(
         return {
             "message": "File processed successfully",
             "filename": original_filename,
-            "chunks": len(chunks),
-            "user_id": user_id
+            "chunks": len(chunks)
         }
     except Exception as e:
         raise HTTPException(500, f"Processing error: {str(e)}")
@@ -232,16 +229,31 @@ async def list_docs(current_user: CurrentUser):
 @app.post("/api/ask")
 async def ask_question(request: AskRequest, current_user: CurrentUser):
     user_id = current_user["user_id"]
-
     if user_id not in user_vectorstores or user_vectorstores[user_id] is None:
         return {"answer": "No documents uploaded yet. Please upload documents first.", "sources": []}
 
-    question = request.question.strip()
-    if not question:
+    full_question = request.question.strip()
+    if not full_question:
         return {"answer": "Please provide a question.", "sources": []}
 
+    # === @filename MAGIC STARTS HERE ===
+    target_filename = None
+    question = full_question
+
+    match = re.match(r"@([^@\s]+)", full_question)
+    if match:
+        target_filename = match.group(1)
+        question = full_question[len(match.group(0)):].strip()
+
+    # Build retriever (with or without filter)
+    search_kwargs = {"k": 4}
+    if target_filename:
+        search_kwargs["filter"] = {"source": target_filename}
+
+    retriever = user_vectorstores[user_id].as_retriever(search_kwargs=search_kwargs)
+    # === END OF @filename LOGIC ===
+
     try:
-        retriever = user_vectorstores[user_id].as_retriever(search_kwargs={"k": 4})
         qa = RetrievalQA.from_chain_type(
             llm=llm,
             chain_type="stuff",
@@ -258,7 +270,12 @@ async def ask_question(request: AskRequest, current_user: CurrentUser):
             for doc in result.get("source_documents", [])
         ]
 
-        # Save to persistent chat history
+        if target_filename and not sources:
+            answer = f"I couldn't find the document '{target_filename}'. Try uploading it first!"
+        else:
+            answer = result["result"]
+
+        # Save to chat history
         history_file = CHAT_HISTORY_DIR / f"{user_id}.json"
         history = []
         if history_file.exists():
@@ -266,19 +283,18 @@ async def ask_question(request: AskRequest, current_user: CurrentUser):
                 with open(history_file, "r") as f:
                     history = json.load(f)
             except:
-                history = []
-
+                pass
         history.append({
-            "question": question,
-            "answer": result["result"],
+            "question": full_question,
+            "answer": answer,
             "sources": sources,
             "timestamp": datetime.now(timezone.utc).isoformat()
         })
-        history = history[-50:]  # keep last 50 messages
+        history = history[-50:]
         with open(history_file, "w") as f:
             json.dump(history, f, indent=2)
 
-        return {"answer": result["result"], "sources": sources}
+        return {"answer": answer, "sources": sources}
 
     except Exception as e:
         raise HTTPException(500, f"Query error: {str(e)}")
@@ -287,14 +303,11 @@ async def ask_question(request: AskRequest, current_user: CurrentUser):
 async def get_chat_history(current_user: CurrentUser):
     user_id = current_user["user_id"]
     history_file = CHAT_HISTORY_DIR / f"{user_id}.json"
-    
     if not history_file.exists():
         return {"history": []}
-    
     try:
         with open(history_file, "r") as f:
-            history = json.load(f)
-        return {"history": history}
+            return {"history": json.load(f)}
     except:
         return {"history": []}
 
