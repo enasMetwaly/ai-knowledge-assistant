@@ -8,6 +8,7 @@ services:
     volumes:
       - ./backend/uploads:/app/uploads
       - ./backend/chroma_db:/app/chroma_db
+       - ./backend/chat_history:/app/chat_history  # ← ADD THIS
       - ./backend/.env:/app/.env
       - /tmp/.cache/pip:/root/.cache/pip
     environment:

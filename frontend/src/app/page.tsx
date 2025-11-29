@@ -15,6 +15,13 @@ interface Source {
   filename: string;
 }
 
+interface ChatMessage {
+  question: string;
+  answer: string;
+  sources: Source[];
+  timestamp?: string;
+}
+
 interface User {
   user_id: string;
   email: string;
@@ -105,7 +112,7 @@ export default function Home() {
             active={activeTab === 'chat'}
             onClick={() => setActiveTab('chat')}
             icon="💬"
-            label="Ask Question"
+            label="Chat"
           />
           <TabButton
             active={activeTab === 'docs'}
@@ -398,19 +405,41 @@ function UploadTab() {
 
 function ChatTab() {
   const [question, setQuestion] = useState('');
-  const [answer, setAnswer] = useState('');
-  const [sources, setSources] = useState<Source[]>([]);
+  const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(false);
-  const [showSources, setShowSources] = useState(false);
+  const [loadingHistory, setLoadingHistory] = useState(true);
+
+  // Load chat history when component mounts
+  useEffect(() => {
+    loadChatHistory();
+  }, []);
+
+  const loadChatHistory = async () => {
+    setLoadingHistory(true);
+    const token = localStorage.getItem('token');
+
+    try {
+      const response = await fetch(`${API_URL}/api/chat-history`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setChatHistory(data.history || []);
+      }
+    } catch (error) {
+      console.error('Failed to load chat history:', error);
+    } finally {
+      setLoadingHistory(false);
+    }
+  };
 
   const handleAsk = async () => {
     if (!question.trim()) return;
 
     setLoading(true);
-    setAnswer('');
-    setSources([]);
-    setShowSources(false);
-
     const token = localStorage.getItem('token');
 
     try {
@@ -426,13 +455,23 @@ function ChatTab() {
       const data = await response.json();
 
       if (response.ok) {
-        setAnswer(data.answer || 'No answer received');
-        setSources(data.sources || []);
+        const newMessage: ChatMessage = {
+          question: question.trim(),
+          answer: data.answer || 'No answer received',
+          sources: data.sources || [],
+          timestamp: new Date().toISOString(),
+        };
+        
+        // Add to local state
+        setChatHistory(prev => [...prev, newMessage]);
+        
+        // Clear input
+        setQuestion('');
       } else {
-        setAnswer(`❌ Error: ${data.detail || 'Failed to get answer'}`);
+        alert(`Error: ${data.detail || 'Failed to get answer'}`);
       }
     } catch (error) {
-      setAnswer('❌ Connection failed. Make sure backend is running!');
+      alert('Connection failed. Make sure backend is running!');
       console.error('Ask error:', error);
     } finally {
       setLoading(false);
@@ -449,28 +488,86 @@ function ChatTab() {
   return (
     <div className="bg-white rounded-2xl shadow-xl p-8 border border-gray-100">
       <div className="flex items-center justify-between mb-6">
-        <h2 className="text-3xl font-bold text-gray-800">💬 Ask a Question</h2>
-        <span className="text-xs bg-purple-100 text-purple-700 px-3 py-1 rounded-full font-semibold">
-          ⚡ Groq LLM
-        </span>
+        <h2 className="text-3xl font-bold text-gray-800">💬 Chat with AI</h2>
+        <div className="flex items-center gap-3">
+          <span className="text-xs bg-purple-100 text-purple-700 px-3 py-1 rounded-full font-semibold">
+            ⚡ Groq LLM
+          </span>
+          {chatHistory.length > 0 && (
+            <span className="text-xs bg-blue-100 text-blue-700 px-3 py-1 rounded-full font-semibold">
+              {chatHistory.length} messages
+            </span>
+          )}
+        </div>
       </div>
 
-      <div className="space-y-6">
+      {/* Chat History */}
+      {loadingHistory ? (
+        <div className="text-center py-8">
+          <div className="animate-spin text-3xl mb-2">⏳</div>
+          <p className="text-gray-500 text-sm">Loading chat history...</p>
+        </div>
+      ) : chatHistory.length > 0 ? (
+        <div className="mb-6 max-h-96 overflow-y-auto space-y-4 p-4 bg-gray-50 rounded-xl">
+          {chatHistory.map((msg, idx) => (
+            <div key={idx} className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
+              {/* Question */}
+              <div className="mb-3">
+                <div className="flex items-start gap-2 mb-2">
+                  <span className="text-lg">👤</span>
+                  <p className="font-semibold text-gray-800">{msg.question}</p>
+                </div>
+              </div>
+              
+              {/* Answer */}
+              <div className="bg-gradient-to-r from-purple-50 to-blue-50 p-4 rounded-lg">
+                <div className="flex items-start gap-2 mb-2">
+                  <span className="text-lg">🤖</span>
+                  <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{msg.answer}</p>
+                </div>
+              </div>
+
+              {/* Sources */}
+              {msg.sources && msg.sources.length > 0 && (
+                <details className="mt-3">
+                  <summary className="cursor-pointer text-xs text-gray-500 hover:text-gray-700">
+                    📚 {msg.sources.length} source(s)
+                  </summary>
+                  <div className="mt-2 space-y-1">
+                    {msg.sources.map((src, i) => (
+                      <div key={i} className="text-xs text-gray-600 p-2 bg-gray-50 rounded">
+                        {src.content.substring(0, 100)}...
+                      </div>
+                    ))}
+                  </div>
+                </details>
+              )}
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="text-center py-8 mb-6 text-gray-400 bg-gray-50 rounded-xl">
+          <div className="text-4xl mb-2">💭</div>
+          <p>No chat history yet. Ask your first question!</p>
+        </div>
+      )}
+
+      {/* Input Area */}
+      <div className="space-y-4">
         <div>
           <textarea
             value={question}
             onChange={(e) => setQuestion(e.target.value)}
             onKeyPress={handleKeyPress}
-            placeholder="What would you like to know about your documents?"
-            rows={4}
+            placeholder="Ask a question about your documents(answer from all docs)...or type @filename to ask about a specific document"
+            rows={3}
             className="w-full p-4 border-2 border-gray-300 rounded-xl focus:ring-2 
               focus:ring-purple-500 focus:border-transparent transition resize-none
               text-gray-800 placeholder-gray-400"
             disabled={loading}
           />
           <p className="text-xs text-gray-500 mt-2">
-            💡 Press <kbd className="px-2 py-1 bg-gray-100 rounded">Enter</kbd> to submit, 
-            <kbd className="px-2 py-1 bg-gray-100 rounded ml-1">Shift+Enter</kbd> for new line
+            💡 Press <kbd className="px-2 py-1 bg-gray-100 rounded">Enter</kbd> to send
           </p>
         </div>
 
@@ -487,64 +584,9 @@ function ChatTab() {
               <span className="animate-spin">🤔</span> AI is thinking...
             </span>
           ) : (
-            '🚀 Get AI Answer'
+            '🚀 Send Message'
           )}
         </button>
-
-        {answer && (
-          <div className="mt-8 space-y-4 animate-fade-in">
-            <div className="bg-gradient-to-r from-purple-50 to-blue-50 p-6 rounded-xl border-2 border-purple-200 shadow-md">
-              <div className="flex items-center gap-2 mb-3">
-                <span className="text-2xl">🤖</span>
-                <h3 className="font-bold text-purple-900">AI Answer:</h3>
-              </div>
-              <div className="prose prose-sm max-w-none">
-                <p className="text-gray-800 leading-relaxed whitespace-pre-wrap">{answer}</p>
-              </div>
-            </div>
-
-            {sources.length > 0 && (
-              <div className="border-2 border-gray-200 rounded-xl overflow-hidden">
-                <button
-                  onClick={() => setShowSources(!showSources)}
-                  className="w-full flex items-center justify-between p-4 bg-gray-50 hover:bg-gray-100 
-                    transition"
-                >
-                  <div className="flex items-center gap-2">
-                    <span className="text-xl">📚</span>
-                    <span className="font-semibold text-gray-700">
-                      Source Documents ({sources.length})
-                    </span>
-                  </div>
-                  <span className="text-gray-500 text-xl">{showSources ? '▲' : '▼'}</span>
-                </button>
-
-                {showSources && (
-                  <div className="p-4 bg-white space-y-3">
-                    {sources.map((source, idx) => (
-                      <div key={idx} className="p-4 bg-gray-50 rounded-lg border border-gray-200">
-                        <div className="flex items-start gap-2 mb-2">
-                          <span className="text-sm font-semibold text-purple-700">Source {idx + 1}:</span>
-                          <span className="text-xs text-gray-500 bg-white px-2 py-1 rounded">
-                            📄 {source.filename}
-                          </span>
-                        </div>
-                        <p className="text-sm text-gray-700 leading-relaxed">{source.content}</p>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        )}
-
-        {!answer && !loading && (
-          <div className="text-center py-8 text-gray-400">
-            <div className="text-4xl mb-2">💭</div>
-            <p>Ask a question to get started!</p>
-          </div>
-        )}
       </div>
     </div>
   );

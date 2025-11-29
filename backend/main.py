@@ -36,8 +36,10 @@ app.add_middleware(
 # Directories
 UPLOAD_DIR = Path("uploads")
 CHROMA_DIR = Path("chroma_db")
+CHAT_HISTORY_DIR = Path("chat_history")
 UPLOAD_DIR.mkdir(exist_ok=True)
 CHROMA_DIR.mkdir(exist_ok=True)
+CHAT_HISTORY_DIR.mkdir(exist_ok=True)
 METADATA_FILE = Path("docs_metadata.json")
 
 # ===== AUTH =====
@@ -75,11 +77,11 @@ llm = ChatGroq(
     groq_api_key=os.getenv("GROQ_API_KEY"),
     model_name="llama-3.1-8b-instant",
     temperature=0.1,
-    max_tokens=500
+    max_tokens=800  # increased for better answers
 )
 
 # ===== AUTH HELPERS =====
-def verify_password(plain, hashed):
+def verify_password(plain: str, hashed: str) -> bool:
     return pwd_context.verify(plain, hashed)
 
 def get_user(email: str):
@@ -164,16 +166,16 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends()):
 async def get_me(current_user: CurrentUser):
     return current_user
 
-# IMPORTANT: current_user BEFORE file (non-default before default)
 @app.post("/api/upload")
 async def upload_file(
-    current_user: CurrentUser,           # ← non-default (no = ...)
-    file: UploadFile = File(...)         # ← default
+    current_user: CurrentUser,
+    file: UploadFile = File(...)
 ):
     if not file.filename.lower().endswith(('.txt', '.pdf')):
         raise HTTPException(400, "Only .txt and .pdf files allowed")
 
     user_id = current_user["user_id"]
+    original_filename = file.filename
     safe_filename = f"{user_id}_{file.filename.replace(' ', '_')}"
     filepath = UPLOAD_DIR / safe_filename
 
@@ -183,6 +185,11 @@ async def upload_file(
     try:
         loader = PyPDFLoader(str(filepath)) if filepath.suffix == ".pdf" else TextLoader(str(filepath), encoding="utf-8")
         docs = loader.load()
+
+        # Critical: Add real filename to every page's metadata
+        for doc in docs:
+            doc.metadata["source"] = original_filename
+
         chunks = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=50).split_documents(docs)
 
         user_dir = CHROMA_DIR / user_id
@@ -197,7 +204,7 @@ async def upload_file(
 
         docs_metadata[safe_filename] = {
             "user_id": user_id,
-            "original_name": file.filename,
+            "original_name": original_filename,
             "chunks": len(chunks),
             "embedding_count": len(chunks)
         }
@@ -205,7 +212,7 @@ async def upload_file(
 
         return {
             "message": "File processed successfully",
-            "filename": file.filename,
+            "filename": original_filename,
             "chunks": len(chunks),
             "user_id": user_id
         }
@@ -229,30 +236,67 @@ async def ask_question(request: AskRequest, current_user: CurrentUser):
     if user_id not in user_vectorstores or user_vectorstores[user_id] is None:
         return {"answer": "No documents uploaded yet. Please upload documents first.", "sources": []}
 
-    if not (q := request.question.strip()):
+    question = request.question.strip()
+    if not question:
         return {"answer": "Please provide a question.", "sources": []}
 
     try:
-        retriever = user_vectorstores[user_id].as_retriever(search_kwargs={"k": 3})
+        retriever = user_vectorstores[user_id].as_retriever(search_kwargs={"k": 4})
         qa = RetrievalQA.from_chain_type(
             llm=llm,
             chain_type="stuff",
             retriever=retriever,
             return_source_documents=True
         )
-        result = qa.invoke({"query": q})
+        result = qa.invoke({"query": question})
 
         sources = [
             {
-                "content": doc.page_content[:300] + "...",
-                "filename": Path(doc.metadata.get("source", "")).name or "unknown"
+                "content": (doc.page_content[:400] + "...") if len(doc.page_content) > 400 else doc.page_content,
+                "filename": doc.metadata.get("source", "Unknown file")
             }
             for doc in result.get("source_documents", [])
         ]
 
+        # Save to persistent chat history
+        history_file = CHAT_HISTORY_DIR / f"{user_id}.json"
+        history = []
+        if history_file.exists():
+            try:
+                with open(history_file, "r") as f:
+                    history = json.load(f)
+            except:
+                history = []
+
+        history.append({
+            "question": question,
+            "answer": result["result"],
+            "sources": sources,
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        })
+        history = history[-50:]  # keep last 50 messages
+        with open(history_file, "w") as f:
+            json.dump(history, f, indent=2)
+
         return {"answer": result["result"], "sources": sources}
+
     except Exception as e:
         raise HTTPException(500, f"Query error: {str(e)}")
+
+@app.get("/api/chat-history")
+async def get_chat_history(current_user: CurrentUser):
+    user_id = current_user["user_id"]
+    history_file = CHAT_HISTORY_DIR / f"{user_id}.json"
+    
+    if not history_file.exists():
+        return {"history": []}
+    
+    try:
+        with open(history_file, "r") as f:
+            history = json.load(f)
+        return {"history": history}
+    except:
+        return {"history": []}
 
 if __name__ == "__main__":
     import uvicorn
