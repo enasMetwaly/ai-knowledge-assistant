@@ -15,19 +15,82 @@ interface Source {
   filename: string;
 }
 
+interface User {
+  user_id: string;
+  email: string;
+  name: string;
+}
+
 export default function Home() {
+  const [user, setUser] = useState<User | null>(null);
   const [activeTab, setActiveTab] = useState<'upload' | 'chat' | 'docs'>('upload');
+  const [loading, setLoading] = useState(true);
   
+  // Check for existing token on mount
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    const savedUser = localStorage.getItem('user');
+    if (token && savedUser) {
+      try {
+        setUser(JSON.parse(savedUser));
+      } catch (e) {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+      }
+    }
+    setLoading(false);
+  }, []);
+
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    setUser(null);
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-100">
+        <div className="text-center">
+          <div className="animate-spin text-6xl mb-4">🧠</div>
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <LoginPage onLogin={setUser} />;
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-100">
       <div className="container mx-auto px-4 py-8 max-w-6xl">
         
-        {/* Header */}
-        <header className="text-center mb-12">
+        {/* Header with User Info */}
+        <header className="text-center mb-8">
+          <div className="flex justify-between items-center mb-4">
+            <div className="flex-1" />
+            <div className="flex items-center gap-4">
+              <div className="text-right">
+                <p className="text-sm text-gray-600">Logged in as</p>
+                <p className="font-semibold text-gray-800">{user.name}</p>
+                <p className="text-xs text-gray-500">{user.email}</p>
+              </div>
+              <button
+                onClick={handleLogout}
+                className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition shadow-md"
+              >
+                🚪 Logout
+              </button>
+            </div>
+          </div>
+          
           <h1 className="text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-blue-600 mb-3">
             🧠 Nixai AI Assistant
           </h1>
-          <p className="text-gray-600 text-lg">Upload documents, ask questions, get AI-powered answers</p>
+          <p className="text-gray-600 text-lg">
+            Powered by <span className="font-semibold text-purple-600">Groq LLM</span> ⚡
+          </p>
         </header>
 
         {/* Navigation Tabs */}
@@ -48,7 +111,7 @@ export default function Home() {
             active={activeTab === 'docs'}
             onClick={() => setActiveTab('docs')}
             icon="📚"
-            label="Documents"
+            label="My Documents"
           />
         </div>
 
@@ -61,8 +124,128 @@ export default function Home() {
 
         {/* Footer */}
         <footer className="text-center mt-16 text-gray-500 text-sm">
-          Built for Nixai Labs Hiring Challenge 🚀
+          Built for Nixai Labs Hiring Challenge 🚀 | Groq-Powered AI ⚡
         </footer>
+      </div>
+    </div>
+  );
+}
+
+function LoginPage({ onLogin }: { onLogin: (user: User) => void }) {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+
+    try {
+      const formData = new URLSearchParams();
+      formData.append('username', email);
+      formData.append('password', password);
+
+      const response = await fetch(`${API_URL}/api/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: formData,
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        localStorage.setItem('token', data.access_token);
+        const userData = {
+          user_id: data.user_id,
+          email: data.email,
+          name: data.name,
+        };
+        localStorage.setItem('user', JSON.stringify(userData));
+        onLogin(userData);
+      } else {
+        setError(data.detail || 'Login failed');
+      }
+    } catch (err) {
+      setError('Cannot connect to server. Make sure backend is running on port 8000!');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-100 flex items-center justify-center px-4">
+      <div className="max-w-md w-full">
+        <div className="text-center mb-8">
+          <h1 className="text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-blue-600 mb-3">
+            🧠 Nixai AI Assistant
+          </h1>
+          <p className="text-gray-600">Please login to continue</p>
+          <p className="text-sm text-purple-600 mt-2">⚡ Powered by Groq LLM</p>
+        </div>
+
+        <div className="bg-white rounded-2xl shadow-xl p-8 border border-gray-100">
+          <h2 className="text-2xl font-bold mb-6 text-gray-800">Login</h2>
+
+          <form onSubmit={handleLogin} className="space-y-4">
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Email
+              </label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="user@example.com"
+                required
+                className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Password
+              </label>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Enter your password"
+                required
+                className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+              />
+            </div>
+
+            {error && (
+              <div className="p-4 bg-red-50 text-red-800 rounded-xl border border-red-200">
+                ❌ {error}
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white py-4 rounded-xl font-semibold text-lg hover:from-purple-700 hover:to-blue-700 disabled:from-gray-300 disabled:to-gray-400 transition-all shadow-lg"
+            >
+              {loading ? (
+                <span className="flex items-center justify-center gap-2">
+                  <span className="animate-spin">⏳</span> Logging in...
+                </span>
+              ) : (
+                '🔐 Login'
+              )}
+            </button>
+          </form>
+
+          <div className="mt-6 p-4 bg-gradient-to-r from-purple-50 to-blue-50 rounded-xl border border-purple-200">
+            <p className="text-sm text-gray-700 font-semibold mb-2">💡 Demo Accounts:</p>
+            <div className="space-y-1">
+              <p className="text-xs text-gray-600">📧 user@example.com / 🔑 password123</p>
+              <p className="text-xs text-gray-600">📧 admin@nixai.com / 🔑 admin123</p>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -102,9 +285,14 @@ function UploadTab() {
     const formData = new FormData();
     formData.append('file', file);
 
+    const token = localStorage.getItem('token');
+
     try {
       const response = await fetch(`${API_URL}/api/upload`, {
         method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
         body: formData,
       });
 
@@ -122,7 +310,7 @@ function UploadTab() {
         showMessage(`❌ Error: ${data.detail || 'Upload failed'}`, 'error');
       }
     } catch (error) {
-      showMessage('❌ Failed to upload. Make sure the backend is running on port 8000!', 'error');
+      showMessage('❌ Connection failed. Make sure backend is running on port 8000!', 'error');
     } finally {
       setUploading(false);
     }
@@ -161,9 +349,9 @@ function UploadTab() {
         </div>
 
         {file && (
-          <div className="flex items-center gap-3 p-4 bg-blue-50 rounded-lg">
+          <div className="flex items-center gap-3 p-4 bg-blue-50 rounded-lg border border-blue-200">
             <span className="text-2xl">📄</span>
-            <div>
+            <div className="flex-1">
               <p className="font-medium text-gray-800">{file.name}</p>
               <p className="text-sm text-gray-500">{(file.size / 1024).toFixed(2)} KB</p>
             </div>
@@ -197,9 +385,10 @@ function UploadTab() {
           </div>
         )}
 
-        <div className="mt-6 p-4 bg-gray-50 rounded-xl border border-gray-200">
-          <p className="text-sm text-gray-600">
-            💡 <strong>Tip:</strong> Supported formats: PDF, TXT. Files are processed using HuggingFace embeddings (no API key needed!)
+        <div className="mt-6 p-4 bg-gradient-to-r from-purple-50 to-blue-50 rounded-xl border border-purple-200">
+          <p className="text-sm text-gray-700">
+            <strong>🔒 Private:</strong> Your documents are only visible to you<br/>
+            <strong>⚡ Powered by:</strong> Groq LLM (llama-3.1-8b-instant)
           </p>
         </div>
       </div>
@@ -222,23 +411,29 @@ function ChatTab() {
     setSources([]);
     setShowSources(false);
 
+    const token = localStorage.getItem('token');
+
     try {
       const response = await fetch(`${API_URL}/api/ask`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ question }),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ question: question.trim() }),
       });
 
       const data = await response.json();
 
       if (response.ok) {
-        setAnswer(data.answer);
+        setAnswer(data.answer || 'No answer received');
         setSources(data.sources || []);
       } else {
         setAnswer(`❌ Error: ${data.detail || 'Failed to get answer'}`);
       }
     } catch (error) {
-      setAnswer('❌ Failed to connect. Make sure the backend is running!');
+      setAnswer('❌ Connection failed. Make sure backend is running!');
+      console.error('Ask error:', error);
     } finally {
       setLoading(false);
     }
@@ -253,7 +448,12 @@ function ChatTab() {
 
   return (
     <div className="bg-white rounded-2xl shadow-xl p-8 border border-gray-100">
-      <h2 className="text-3xl font-bold mb-6 text-gray-800">💬 Ask a Question</h2>
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-3xl font-bold text-gray-800">💬 Ask a Question</h2>
+        <span className="text-xs bg-purple-100 text-purple-700 px-3 py-1 rounded-full font-semibold">
+          ⚡ Groq LLM
+        </span>
+      </div>
 
       <div className="space-y-6">
         <div>
@@ -266,8 +466,12 @@ function ChatTab() {
             className="w-full p-4 border-2 border-gray-300 rounded-xl focus:ring-2 
               focus:ring-purple-500 focus:border-transparent transition resize-none
               text-gray-800 placeholder-gray-400"
+            disabled={loading}
           />
-          <p className="text-xs text-gray-500 mt-2">Press Enter to submit, Shift+Enter for new line</p>
+          <p className="text-xs text-gray-500 mt-2">
+            💡 Press <kbd className="px-2 py-1 bg-gray-100 rounded">Enter</kbd> to submit, 
+            <kbd className="px-2 py-1 bg-gray-100 rounded ml-1">Shift+Enter</kbd> for new line
+          </p>
         </div>
 
         <button
@@ -280,47 +484,65 @@ function ChatTab() {
         >
           {loading ? (
             <span className="flex items-center justify-center gap-2">
-              <span className="animate-spin">🤔</span> Thinking...
+              <span className="animate-spin">🤔</span> AI is thinking...
             </span>
           ) : (
-            '🚀 Get Answer'
+            '🚀 Get AI Answer'
           )}
         </button>
 
         {answer && (
           <div className="mt-8 space-y-4 animate-fade-in">
-            <div className="bg-gradient-to-r from-purple-50 to-blue-50 p-6 rounded-xl border border-purple-200">
-              <h3 className="font-bold text-purple-900 mb-3 flex items-center gap-2">
-                <span>💡</span> Answer:
-              </h3>
-              <p className="text-gray-800 leading-relaxed whitespace-pre-wrap">{answer}</p>
+            <div className="bg-gradient-to-r from-purple-50 to-blue-50 p-6 rounded-xl border-2 border-purple-200 shadow-md">
+              <div className="flex items-center gap-2 mb-3">
+                <span className="text-2xl">🤖</span>
+                <h3 className="font-bold text-purple-900">AI Answer:</h3>
+              </div>
+              <div className="prose prose-sm max-w-none">
+                <p className="text-gray-800 leading-relaxed whitespace-pre-wrap">{answer}</p>
+              </div>
             </div>
 
             {sources.length > 0 && (
-              <div>
+              <div className="border-2 border-gray-200 rounded-xl overflow-hidden">
                 <button
                   onClick={() => setShowSources(!showSources)}
                   className="w-full flex items-center justify-between p-4 bg-gray-50 hover:bg-gray-100 
-                    rounded-xl transition border border-gray-200"
+                    transition"
                 >
-                  <span className="font-semibold text-gray-700">
-                    📚 View Sources ({sources.length})
-                  </span>
-                  <span className="text-gray-500">{showSources ? '▲' : '▼'}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xl">📚</span>
+                    <span className="font-semibold text-gray-700">
+                      Source Documents ({sources.length})
+                    </span>
+                  </div>
+                  <span className="text-gray-500 text-xl">{showSources ? '▲' : '▼'}</span>
                 </button>
 
                 {showSources && (
-                  <div className="mt-3 space-y-3">
+                  <div className="p-4 bg-white space-y-3">
                     {sources.map((source, idx) => (
-                      <div key={idx} className="p-4 bg-white rounded-lg border border-gray-200 shadow-sm">
-                        <p className="text-sm text-gray-600 leading-relaxed">{source.content}</p>
-                        <p className="text-xs text-gray-400 mt-2">From: {source.filename}</p>
+                      <div key={idx} className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                        <div className="flex items-start gap-2 mb-2">
+                          <span className="text-sm font-semibold text-purple-700">Source {idx + 1}:</span>
+                          <span className="text-xs text-gray-500 bg-white px-2 py-1 rounded">
+                            📄 {source.filename}
+                          </span>
+                        </div>
+                        <p className="text-sm text-gray-700 leading-relaxed">{source.content}</p>
                       </div>
                     ))}
                   </div>
                 )}
               </div>
             )}
+          </div>
+        )}
+
+        {!answer && !loading && (
+          <div className="text-center py-8 text-gray-400">
+            <div className="text-4xl mb-2">💭</div>
+            <p>Ask a question to get started!</p>
           </div>
         )}
       </div>
@@ -334,12 +556,23 @@ function DocsTab() {
 
   const loadDocs = async () => {
     setLoading(true);
+    const token = localStorage.getItem('token');
+    
     try {
-      const response = await fetch(`${API_URL}/api/docs`);
-      const data = await response.json();
-      setDocs(data.docs || []);
+      const response = await fetch(`${API_URL}/api/docs`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setDocs(data.docs || []);
+      } else {
+        console.error('Failed to load documents');
+      }
     } catch (error) {
-      console.error('Failed to load documents');
+      console.error('Error loading documents:', error);
     } finally {
       setLoading(false);
     }
@@ -352,25 +585,27 @@ function DocsTab() {
   return (
     <div className="bg-white rounded-2xl shadow-xl p-8 border border-gray-100">
       <div className="flex justify-between items-center mb-6">
-        <h2 className="text-3xl font-bold text-gray-800">📚 Uploaded Documents</h2>
+        <h2 className="text-3xl font-bold text-gray-800">📚 My Documents</h2>
         <button
           onClick={loadDocs}
+          disabled={loading}
           className="px-5 py-2.5 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg 
-            hover:from-purple-700 hover:to-blue-700 font-medium transition-all shadow-md hover:shadow-lg"
+            hover:from-purple-700 hover:to-blue-700 font-medium transition-all shadow-md hover:shadow-lg
+            disabled:from-gray-300 disabled:to-gray-400"
         >
-          🔄 Refresh
+          {loading ? '⏳' : '🔄'} Refresh
         </button>
       </div>
 
       {loading ? (
         <div className="text-center py-12">
           <div className="animate-spin text-4xl mb-4">⏳</div>
-          <p className="text-gray-500">Loading documents...</p>
+          <p className="text-gray-500">Loading your documents...</p>
         </div>
       ) : docs.length === 0 ? (
         <div className="text-center py-12">
           <div className="text-6xl mb-4">📭</div>
-          <p className="text-gray-500 text-lg">No documents uploaded yet</p>
+          <p className="text-gray-500 text-lg font-medium">No documents uploaded yet</p>
           <p className="text-gray-400 text-sm mt-2">Upload your first document to get started!</p>
         </div>
       ) : (
@@ -380,10 +615,12 @@ function DocsTab() {
               key={idx} 
               className="border-2 border-gray-200 rounded-xl p-5 hover:border-purple-300 
                 hover:bg-gradient-to-r hover:from-purple-50 hover:to-blue-50 transition-all
-                cursor-pointer group"
+                group"
             >
               <div className="flex items-start gap-4">
-                <span className="text-3xl group-hover:scale-110 transition-transform">📄</span>
+                <span className="text-3xl group-hover:scale-110 transition-transform">
+                  {doc.name.endsWith('.pdf') ? '📕' : '📄'}
+                </span>
                 <div className="flex-1">
                   <h3 className="font-bold text-gray-900 text-lg">{doc.name}</h3>
                   <div className="flex gap-4 mt-2 text-sm text-gray-600">
