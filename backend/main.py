@@ -226,6 +226,7 @@ async def list_docs(current_user: CurrentUser):
     ]
     return {"docs": user_docs}
 
+# //load full conent for new perview
 @app.post("/api/ask")
 async def ask_question(request: AskRequest, current_user: CurrentUser):
     user_id = current_user["user_id"]
@@ -236,7 +237,7 @@ async def ask_question(request: AskRequest, current_user: CurrentUser):
     if not full_question:
         return {"answer": "Please provide a question.", "sources": []}
 
-    # === @filename MAGIC STARTS HERE ===
+    # === @filename MAGIC ===
     target_filename = None
     question = full_question
 
@@ -245,13 +246,12 @@ async def ask_question(request: AskRequest, current_user: CurrentUser):
         target_filename = match.group(1)
         question = full_question[len(match.group(0)):].strip()
 
-    # Build retriever (with or without filter)
+    # Build retriever (with optional filter)
     search_kwargs = {"k": 4}
     if target_filename:
         search_kwargs["filter"] = {"source": target_filename}
 
     retriever = user_vectorstores[user_id].as_retriever(search_kwargs=search_kwargs)
-    # === END OF @filename LOGIC ===
 
     try:
         qa = RetrievalQA.from_chain_type(
@@ -262,20 +262,23 @@ async def ask_question(request: AskRequest, current_user: CurrentUser):
         )
         result = qa.invoke({"query": question})
 
+        # FULL CONTENT — NO TRUNCATION!
         sources = [
             {
-                "content": (doc.page_content[:400] + "...") if len(doc.page_content) > 400 else doc.page_content,
+                # "content": (doc.page_content[:400] + "...") if len(doc.page_content) > 400 else doc.page_content,
+                "content": doc.page_content,  # ← FULL chunk sent!
                 "filename": doc.metadata.get("source", "Unknown file")
             }
             for doc in result.get("source_documents", [])
         ]
 
+        # Handle case: user used @filename but no match
         if target_filename and not sources:
-            answer = f"I couldn't find the document '{target_filename}'. Try uploading it first!"
+            answer = f"I couldn't find the document '{target_filename}'. Make sure the filename is correct and it's uploaded."
         else:
             answer = result["result"]
 
-        # Save to chat history
+        # === Save to chat history ===
         history_file = CHAT_HISTORY_DIR / f"{user_id}.json"
         history = []
         if history_file.exists():
@@ -284,13 +287,14 @@ async def ask_question(request: AskRequest, current_user: CurrentUser):
                     history = json.load(f)
             except:
                 pass
+
         history.append({
             "question": full_question,
             "answer": answer,
             "sources": sources,
             "timestamp": datetime.now(timezone.utc).isoformat()
         })
-        history = history[-50:]
+        history = history[-50:]  # keep last 50 messages
         with open(history_file, "w") as f:
             json.dump(history, f, indent=2)
 
@@ -298,6 +302,7 @@ async def ask_question(request: AskRequest, current_user: CurrentUser):
 
     except Exception as e:
         raise HTTPException(500, f"Query error: {str(e)}")
+
 
 @app.get("/api/chat-history")
 async def get_chat_history(current_user: CurrentUser):
