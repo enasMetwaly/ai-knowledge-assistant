@@ -1,4 +1,4 @@
-from fastapi import FastAPI, UploadFile, File, HTTPException, Depends, status
+from fastapi import FastAPI, UploadFile, File, HTTPException, Depends, status, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from datetime import timedelta, datetime, timezone
@@ -10,8 +10,11 @@ import jwt
 from jwt.exceptions import InvalidTokenError
 from pathlib import Path
 import json
-import re  # ← Added for @filename parsing
+import re
 from dotenv import load_dotenv
+
+# Retry logic
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 
 # LangChain
 from langchain_community.document_loaders import PyPDFLoader, TextLoader
@@ -118,6 +121,81 @@ def get_current_user(token: str = Depends(oauth2_scheme)):
 
 CurrentUser = Annotated[dict, Depends(get_current_user)]
 
+# ===== RETRY LOGIC FOR GROQ API =====
+@retry(
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=1, min=2, max=10),
+    retry=retry_if_exception_type((Exception,)),
+    reraise=True,
+    before_sleep=lambda retry_state: print(f"🔄 Retry attempt {retry_state.attempt_number}/3 - waiting {retry_state.next_action.sleep} seconds...")
+)
+def call_groq_with_retry(qa_chain, question: str):
+    """Call Groq API with automatic retry on failure"""
+    print(f"🚀 Calling Groq API (attempt {call_groq_with_retry.retry.statistics.get('attempt_number', 1)})...")
+    try:
+        result = qa_chain.invoke({"query": question})
+        print("✅ Groq API call successful!")
+        return result
+    except Exception as e:
+        print(f"❌ Groq API call failed: {str(e)[:100]}")
+        raise
+
+# ===== BACKGROUND TASK FOR FILE PROCESSING =====
+def process_file_in_background(filepath: Path, user_id: str, original_filename: str):
+    """Process uploaded file in background (async task)"""
+    try:
+        # Load document
+        if filepath.suffix == ".pdf":
+            loader = PyPDFLoader(str(filepath))
+        else:
+            loader = TextLoader(str(filepath), encoding="utf-8")
+        
+        docs = loader.load()
+        
+        # Set original filename in metadata
+        for doc in docs:
+            doc.metadata["source"] = original_filename
+        
+        # Split into chunks
+        text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=50)
+        chunks = text_splitter.split_documents(docs)
+        
+        # Create or update user's vectorstore
+        user_dir = CHROMA_DIR / user_id
+        user_dir.mkdir(parents=True, exist_ok=True)
+        
+        if user_id not in user_vectorstores or user_vectorstores[user_id] is None:
+            user_vectorstores[user_id] = Chroma.from_documents(
+                chunks, embeddings, persist_directory=str(user_dir)
+            )
+        else:
+            user_vectorstores[user_id].add_documents(chunks)
+        
+        # Save metadata
+        safe_filename = f"{user_id}_{original_filename.replace(' ', '_')}"
+        docs_metadata[safe_filename] = {
+            "user_id": user_id,
+            "original_name": original_filename,
+            "chunks": len(chunks),
+            "embedding_count": len(chunks),
+            "status": "completed"
+        }
+        
+        with open(METADATA_FILE, 'w') as f:
+            json.dump(docs_metadata, f, indent=2)
+        
+        print(f"✅ Background processing completed for {original_filename}")
+        
+    except Exception as e:
+        print(f"❌ Background processing failed for {original_filename}: {e}")
+        # Mark as failed in metadata
+        safe_filename = f"{user_id}_{original_filename.replace(' ', '_')}"
+        if safe_filename in docs_metadata:
+            docs_metadata[safe_filename]["status"] = "failed"
+            docs_metadata[safe_filename]["error"] = str(e)
+            with open(METADATA_FILE, 'w') as f:
+                json.dump(docs_metadata, f, indent=2)
+
 # ===== MODELS =====
 class AskRequest(BaseModel):
     question: str
@@ -130,7 +208,11 @@ class RegisterRequest(BaseModel):
 # ===== ROUTES =====
 @app.get("/")
 def root():
-    return {"status": "Nixai AI Assistant Backend is running!", "auth": "enabled"}
+    return {
+        "status": "Nixai AI Assistant Backend is running!",
+        "auth": "enabled",
+        "features": ["retry_logic", "async_tasks"]
+    }
 
 @app.post("/api/register")
 async def register(request: RegisterRequest):
@@ -168,7 +250,12 @@ async def get_me(current_user: CurrentUser):
     return current_user
 
 @app.post("/api/upload")
-async def upload_file(current_user: CurrentUser, file: UploadFile = File(...)):
+async def upload_file(
+    current_user: CurrentUser,
+    background_tasks: BackgroundTasks,
+    file: UploadFile = File(...)
+):
+    """Upload file with async background processing"""
     if not file.filename.lower().endswith(('.txt', '.pdf')):
         raise HTTPException(400, "Only .txt and .pdf files allowed")
 
@@ -177,59 +264,44 @@ async def upload_file(current_user: CurrentUser, file: UploadFile = File(...)):
     safe_filename = f"{user_id}_{file.filename.replace(' ', '_')}"
     filepath = UPLOAD_DIR / safe_filename
 
+    # Save file immediately
     content = await file.read()
     filepath.write_bytes(content)
 
-    try:
-        loader = PyPDFLoader(str(filepath)) if filepath.suffix == ".pdf" else TextLoader(str(filepath), encoding="utf-8")
-        docs = loader.load()
+    # Add background task for processing
+    background_tasks.add_task(
+        process_file_in_background,
+        filepath,
+        user_id,
+        original_filename
+    )
 
-        # Save real filename in metadata
-        for doc in docs:
-            doc.metadata["source"] = original_filename
-
-        chunks = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=50).split_documents(docs)
-
-        user_dir = CHROMA_DIR / user_id
-        user_dir.mkdir(parents=True, exist_ok=True)
-
-        if user_id not in user_vectorstores or user_vectorstores[user_id] is None:
-            user_vectorstores[user_id] = Chroma.from_documents(
-                chunks, embeddings, persist_directory=str(user_dir)
-            )
-        else:
-            user_vectorstores[user_id].add_documents(chunks)
-
-        docs_metadata[safe_filename] = {
-            "user_id": user_id,
-            "original_name": original_filename,
-            "chunks": len(chunks),
-            "embedding_count": len(chunks)
-        }
-        METADATA_FILE.write_text(json.dumps(docs_metadata))
-
-        return {
-            "message": "File processed successfully",
-            "filename": original_filename,
-            "chunks": len(chunks)
-        }
-    except Exception as e:
-        raise HTTPException(500, f"Processing error: {str(e)}")
+    return {
+        "message": "File uploaded successfully. Processing in background...",
+        "filename": original_filename,
+        "status": "processing"
+    }
 
 @app.get("/api/docs")
 async def list_docs(current_user: CurrentUser):
     user_id = current_user["user_id"]
     user_docs = [
-        {"name": m["original_name"], "chunks": m["chunks"], "embedding_count": m["embedding_count"]}
+        {
+            "name": m["original_name"],
+            "chunks": m["chunks"],
+            "embedding_count": m["embedding_count"],
+            "status": m.get("status", "completed")
+        }
         for name, m in docs_metadata.items()
         if m.get("user_id") == user_id
     ]
     return {"docs": user_docs}
 
-# //load full conent for new perview
 @app.post("/api/ask")
 async def ask_question(request: AskRequest, current_user: CurrentUser):
+    """Ask question with retry logic for Groq API"""
     user_id = current_user["user_id"]
+    
     if user_id not in user_vectorstores or user_vectorstores[user_id] is None:
         return {"answer": "No documents uploaded yet. Please upload documents first.", "sources": []}
 
@@ -237,7 +309,7 @@ async def ask_question(request: AskRequest, current_user: CurrentUser):
     if not full_question:
         return {"answer": "Please provide a question.", "sources": []}
 
-    # === @filename MAGIC ===
+    # @filename parsing
     target_filename = None
     question = full_question
 
@@ -246,7 +318,7 @@ async def ask_question(request: AskRequest, current_user: CurrentUser):
         target_filename = match.group(1)
         question = full_question[len(match.group(0)):].strip()
 
-    # Build retriever (with optional filter)
+    # Build retriever
     search_kwargs = {"k": 4}
     if target_filename:
         search_kwargs["filter"] = {"source": target_filename}
@@ -260,25 +332,24 @@ async def ask_question(request: AskRequest, current_user: CurrentUser):
             retriever=retriever,
             return_source_documents=True
         )
-        result = qa.invoke({"query": question})
+        
+        # Call with retry logic
+        result = call_groq_with_retry(qa, question)
 
-        # FULL CONTENT — NO TRUNCATION!
         sources = [
             {
-                # "content": (doc.page_content[:400] + "...") if len(doc.page_content) > 400 else doc.page_content,
-                "content": doc.page_content,  # ← FULL chunk sent!
+                "content": doc.page_content,
                 "filename": doc.metadata.get("source", "Unknown file")
             }
             for doc in result.get("source_documents", [])
         ]
 
-        # Handle case: user used @filename but no match
         if target_filename and not sources:
-            answer = f"I couldn't find the document '{target_filename}'. Make sure the filename is correct and it's uploaded."
+            answer = f"I couldn't find the document '{target_filename}'. Try uploading it first!"
         else:
             answer = result["result"]
 
-        # === Save to chat history ===
+        # Save to chat history
         history_file = CHAT_HISTORY_DIR / f"{user_id}.json"
         history = []
         if history_file.exists():
@@ -287,22 +358,29 @@ async def ask_question(request: AskRequest, current_user: CurrentUser):
                     history = json.load(f)
             except:
                 pass
-
+        
         history.append({
             "question": full_question,
             "answer": answer,
             "sources": sources,
             "timestamp": datetime.now(timezone.utc).isoformat()
         })
-        history = history[-50:]  # keep last 50 messages
+        history = history[-50:]
+        
         with open(history_file, "w") as f:
             json.dump(history, f, indent=2)
 
         return {"answer": answer, "sources": sources}
 
     except Exception as e:
-        raise HTTPException(500, f"Query error: {str(e)}")
-
+        # After retries failed
+        error_msg = str(e)
+        if "API key" in error_msg or "authentication" in error_msg.lower():
+            raise HTTPException(500, f"❌ Authentication failed after 3 retries. Check your GROQ_API_KEY in .env file.")
+        elif "timeout" in error_msg.lower() or "connection" in error_msg.lower():
+            raise HTTPException(500, f"❌ Connection to Groq failed after 3 retries. Network issue or Groq service down.")
+        else:
+            raise HTTPException(500, f"❌ AI query failed after 3 retries: {error_msg[:200]}")
 
 @app.get("/api/chat-history")
 async def get_chat_history(current_user: CurrentUser):

@@ -1,13 +1,16 @@
 fastapi==0.115.0
 uvicorn==0.30.6
-langchain==0.3.1
-langchain-community==0.3.1  # ← 0.3.1 doesn't exist; use 0.3.2 or 1.0.0
+langchain==0.3.5
+langchain-community==0.3.1
+langchain-core==0.3.13  # ← Exact version required by langchain 0.3.5
 chromadb==0.5.5
 pypdf==5.1.0
 python-multipart==0.0.9
 python-dotenv==1.0.1
-langchain-groq==0.2.0       # ✅ For LLM (and optionally embeddings)
+langchain-groq==0.2.0
 python-jose[cryptography]==3.3.0
 passlib[bcrypt]==1.7.4
-bcrypt==4.0.1  # ← Critical: pin bcrypt version
+bcrypt==4.0.1
 pyjwt[crypto]==2.8.0
+tenacity==8.5.0  # # Retry logic ← Compatible with langchain 0.3.x  
+httpx==0.27.0 # Async HTTP (used by LangChain)

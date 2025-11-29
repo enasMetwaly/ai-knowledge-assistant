@@ -307,7 +307,7 @@ function UploadTab() {
       
       if (response.ok) {
         showMessage(
-          `✅ Success! Processed ${data.chunks} chunks from "${data.filename}"`,
+          `✅ ${data.message || 'Success!'} File: "${data.filename}"`,
           'success'
         );
         setFile(null);
@@ -395,7 +395,8 @@ function UploadTab() {
         <div className="mt-6 p-4 bg-gradient-to-r from-purple-50 to-blue-50 rounded-xl border border-purple-200">
           <p className="text-sm text-gray-700">
             <strong>🔒 Private:</strong> Your documents are only visible to you<br/>
-            <strong>⚡ Powered by:</strong> Groq LLM (llama-3.1-8b-instant)
+            <strong>⚡ Powered by:</strong> Groq LLM (llama-3.1-8b-instant)<br/>
+            <strong>🔄 Background Processing:</strong> Files process asynchronously for instant upload
           </p>
         </div>
       </div>
