@@ -1,13 +1,22 @@
 # frontend/Dockerfile
-FROM node:20-alpine 
+FROM node:20-slim
 
 WORKDIR /app
 
+# Copy dependency files
 COPY package*.json ./
-RUN npm install
 
+# Install dependencies (production-only)
+RUN npm ci --omit=dev
+
+# Copy all source code
 COPY . .
 
+#  Critical: Build the Next.js app
+RUN npm run build
+
+# Expose port
 EXPOSE 3000
 
-CMD ["npm", "run", "dev"]
+# Start production server
+CMD ["npm", "start"]
