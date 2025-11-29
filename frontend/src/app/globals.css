@@ -24,3 +24,28 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Ensure details/summary work consistently */
+details {
+  margin: 0;
+  padding: 0;
+}
+
+summary {
+  cursor: pointer;
+  list-style: none;
+  outline: none;
+}
+
+summary::-webkit-details-marker {
+  display: none;
+}
+
+summary::after {
+  content: " ▼";
+  margin-left: 0.5em;
+}
+
+summary[open]::after {
+  content: " ▲";
+}

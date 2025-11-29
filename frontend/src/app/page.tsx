@@ -527,20 +527,40 @@ function ChatTab() {
                 </div>
               </div>
 
-              {/* Sources */}
+              {/* Sources - Expandable Viewer */}
               {msg.sources && msg.sources.length > 0 && (
-                <details className="mt-3">
-                  <summary className="cursor-pointer text-xs text-gray-500 hover:text-gray-700">
-                    📚 {msg.sources.length} source(s)
-                  </summary>
-                  <div className="mt-2 space-y-1">
-                    {msg.sources.map((src, i) => (
-                      <div key={i} className="text-xs text-gray-600 p-2 bg-gray-50 rounded">
-                        {src.content.substring(0, 100)}...
+                <div className="mt-4 border-t border-gray-200 pt-3">
+                  <details className="group">
+                    <summary className="cursor-pointer list-none flex items-center justify-between p-3 bg-white hover:bg-gray-50 rounded-lg border border-gray-200 transition">
+                      <div className="flex items-center gap-2">
+                        <span className="text-lg">📚</span>
+                        <span className="font-semibold text-gray-700">
+                          View Source Documents ({msg.sources.length})
+                        </span>
                       </div>
-                    ))}
-                  </div>
-                </details>
+                      <span className="text-gray-400 group-open:rotate-180 transition-transform">
+                        ▼
+                      </span>
+                    </summary>
+                    <div className="mt-3 space-y-3">
+                      {msg.sources.map((src, i) => (
+                        <div key={i} className="border border-gray-200 rounded-lg overflow-hidden bg-white shadow-sm">
+                          <div className="bg-gradient-to-r from-purple-50 to-blue-50 px-4 py-2 flex justify-between items-center border-b border-gray-200">
+                            <span className="text-sm font-semibold text-purple-700">
+                              📄 {src.filename}
+                            </span>
+                            <span className="text-xs text-gray-500 bg-white px-2 py-1 rounded">
+                              Source {i + 1}
+                            </span>
+                          </div>
+                          <div className="p-4 text-sm text-gray-700 leading-relaxed whitespace-pre-wrap max-h-60 overflow-y-auto">
+                            {src.content}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </details>
+                </div>
               )}
             </div>
           ))}
@@ -566,9 +586,14 @@ function ChatTab() {
               text-gray-800 placeholder-gray-400"
             disabled={loading}
           />
-          <p className="text-xs text-gray-500 mt-2">
-            💡 Press <kbd className="px-2 py-1 bg-gray-100 rounded">Enter</kbd> to send
-          </p>
+          <div className="flex items-center justify-between mt-2">
+            <p className="text-xs text-gray-500">
+              💡 Press <kbd className="px-2 py-1 bg-gray-100 rounded text-xs">Enter</kbd> to send
+            </p>
+            <p className="text-xs text-gray-400">
+              💡 Tip: Use <kbd className="px-2 py-1 bg-gray-100 rounded text-xs">@filename</kbd> to search specific file
+            </p>
+          </div>
         </div>
 
         <button
