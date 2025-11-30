@@ -154,7 +154,7 @@ function LoginPage({ onLogin }: { onLogin: (user: User) => void }) {
       formData.append('username', email);
       formData.append('password', password);
 
-      const response = await fetch(`${API_URL}/api/login`, {
+      const response = await fetch(`${API_URL}/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: formData,
@@ -164,10 +164,11 @@ function LoginPage({ onLogin }: { onLogin: (user: User) => void }) {
 
       if (response.ok) {
         localStorage.setItem('token', data.access_token);
+        // Handle both flat and nested user object structure
         const userData = {
-          user_id: data.user_id,
-          email: data.email,
-          name: data.name,
+          user_id: data.user?.user_id || data.user_id,
+          email: data.user?.email || data.email,
+          name: data.user?.name || data.name,
         };
         localStorage.setItem('user', JSON.stringify(userData));
         onLogin(userData);
@@ -295,7 +296,7 @@ function UploadTab() {
     const token = localStorage.getItem('token');
 
     try {
-      const response = await fetch(`${API_URL}/api/upload`, {
+      const response = await fetch(`${API_URL}/upload`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -420,7 +421,7 @@ function ChatTab() {
     const token = localStorage.getItem('token');
 
     try {
-      const response = await fetch(`${API_URL}/api/chat-history`, {
+      const response = await fetch(`${API_URL}/chat-history`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -444,7 +445,7 @@ function ChatTab() {
     const token = localStorage.getItem('token');
 
     try {
-      const response = await fetch(`${API_URL}/api/ask`, {
+      const response = await fetch(`${API_URL}/ask`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -580,7 +581,7 @@ function ChatTab() {
             value={question}
             onChange={(e) => setQuestion(e.target.value)}
             onKeyPress={handleKeyPress}
-            placeholder="Ask a question about your documents(answer from all docs)...or type @filename to ask about a specific document"
+            placeholder="Ask a question about your documents..."
             rows={3}
             className="w-full p-4 border-2 border-gray-300 rounded-xl focus:ring-2 
               focus:ring-purple-500 focus:border-transparent transition resize-none
@@ -627,7 +628,7 @@ function DocsTab() {
     const token = localStorage.getItem('token');
     
     try {
-      const response = await fetch(`${API_URL}/api/docs`, {
+      const response = await fetch(`${API_URL}/documents`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
