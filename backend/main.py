@@ -8,9 +8,6 @@ from routers.ask import router as ask_router
 from routers.docs import router as docs_router
 from routers.chat_history import router as chat_history_router
 
-from fastapi.openapi.docs import get_swagger_ui_html
-from fastapi.openapi.utils import get_openapi
-
 # Rate limiting
 from slowapi import Limiter
 from slowapi.util import get_remote_address
