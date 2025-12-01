@@ -4,7 +4,7 @@ from core.config import CHAT_HISTORY_DIR
 from dependencies import CurrentUser
 import json
 
-router = APIRouter()
+router = APIRouter(tags=["Chat"])
 
 
 @router.get("/chat-history")

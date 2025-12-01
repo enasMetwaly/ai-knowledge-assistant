@@ -4,7 +4,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from dependencies import authenticate_user, create_access_token, CurrentUser
 from datetime import timedelta
 
-router = APIRouter(prefix="/auth", tags=["auth"])
+router = APIRouter(prefix="/auth", tags=["Auth"])
 
 @router.post("/login")
 async def login(form_data: OAuth2PasswordRequestForm = Depends()):

@@ -4,7 +4,7 @@ from dependencies import CurrentUser
 from rag.ingest import ingest_document
 from core.config import UPLOAD_DIR
 
-router = APIRouter(tags=["documents"])
+router = APIRouter(tags=["Documents"])
 
 @router.post("/upload")
 async def upload(

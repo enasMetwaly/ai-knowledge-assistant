@@ -9,14 +9,30 @@ from pathlib import Path
 from dependencies import CurrentUser
 from rag.retriever import query_with_retry
 from core.config import CHAT_HISTORY_DIR
+from pydantic import BaseModel, Field
 
-router = APIRouter(tags=["chat"])
+
+
+router = APIRouter(tags=["Chat"])
 
 class AskRequest(BaseModel):
-    question: str
+    # question: str just change
+      question: str = Field(
+        ...,
+        example="@ai.txt What is Ai?",
+        description="Your question. Use @filename to query a specific document only."
+    )
 
 @router.post("/ask")
 async def ask(request: AskRequest, current_user: CurrentUser):
+    #just """ doc string added 
+    """
+    Ask a question about your uploaded documents.
+
+    - Supports `@filename` syntax to restrict to one file
+    - Rate limited to 10 requests/minute
+    - Returns AI answer + source chunks
+    """
     full_q = request.question.strip()
     if not full_q:
         return {"answer": "Ask something!", "sources": []}

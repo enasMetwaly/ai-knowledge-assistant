@@ -4,7 +4,7 @@ from dependencies import CurrentUser
 from core.config import METADATA_FILE
 import json
 
-router = APIRouter(tags=["documents"])
+router = APIRouter(tags=["Documents"])
 
 
 @router.get("/documents")

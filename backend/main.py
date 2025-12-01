@@ -8,13 +8,19 @@ from routers.ask import router as ask_router
 from routers.docs import router as docs_router
 from routers.chat_history import router as chat_history_router
 
+from fastapi.openapi.docs import get_swagger_ui_html
+from fastapi.openapi.utils import get_openapi
+
 # Rate limiting
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 
-app = FastAPI(title="Nixai AI Assistant")
+app = FastAPI(
+    title="Nixai AI Assistant",
+    description="A secure, per-user RAG system with Groq LLM, background processing, rate limiting, and full user isolation.",
+)
 
 # Limiter setup
 limiter = Limiter(key_func=get_remote_address)
@@ -41,3 +47,4 @@ app.include_router(chat_history_router)
 @app.get("/")
 def root():
     return {"status": "Nixai Backend — Modular & Running Perfectly"}
+
