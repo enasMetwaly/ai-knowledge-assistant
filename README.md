@@ -133,21 +133,6 @@ Use `@filename` to search specific documents:
 @report.pdf What were the Q3 results?
 ```
 
-## 🏗️ Architecture
-
-```
-┌─────────────────┐         ┌──────────────────┐
-│   Next.js 14    │ ◄─────► │  FastAPI Backend │
-│   (Frontend)    │  HTTP   │   (Python 3.10)  │
-└─────────────────┘         └──────────────────┘
-                                      │
-                    ┌─────────────────┼─────────────────┐
-                    ▼                 ▼                 ▼
-              ┌──────────┐      ┌──────────┐     ┌──────────┐
-              │ ChromaDB │      │ Groq LLM │     │   JWT    │
-              │ (Vector) │      │ (AI API) │     │  (Auth)  │
-              └──────────┘      └──────────┘     └──────────┘
-```
 
 ### Tech Stack
 
@@ -191,6 +176,7 @@ ai-knowledge-assistant/
 │   ├── main.py                    # FastAPI app
 │   ├── dependencies.py            # Auth dependencies
 │   └── requirements.txt
+
 │
 ├── frontend/
 │   ├── src/
@@ -270,16 +256,11 @@ curl http://localhost:8000
 docker-compose restart
 ```
 
-### "No documents uploaded" error
-```bash
-# Check background processing completed
-docker-compose logs backend | grep "Success"
-```
 
 ### Frontend can't connect
 ```bash
 # Verify API URL in browser console
-# Should be http://localhost:8000
+Should be http://localhost:8000
 
 # Check CORS settings in main.py
 ```
@@ -298,72 +279,15 @@ docker-compose logs backend | grep "Success"
 
 **Run tests:**
 ```bash
+
 cd backend
+#via docker
+# 1. Ensure containers are running
+docker compose up -d
+
+# 2. Run all backend tests (verbose)
+docker compose exec backend pytest -v
+# Manual
 pytest -v
 ```
 
-## 🚢 Deployment
-
-### Production Checklist
-
-- [ ] Change `SECRET_KEY` in production
-- [ ] Use PostgreSQL instead of in-memory user DB
-- [ ] Enable HTTPS
-- [ ] Set up proper CORS origins
-- [ ] Configure rate limits
-- [ ] Add monitoring/logging
-- [ ] Set up backup for vector DB
-
-### Docker Production Build
-
-```bash
-# Build for production
-docker-compose -f docker-compose.prod.yml up --build
-
-# Or deploy to cloud (AWS, GCP, etc.)
-```
-
-## 📝 Development Notes
-
-### Adding New Features
-
-1. **Backend Route:**
-   - Create router in `backend/routers/`
-   - Register in `main.py`
-   - Add tests in `backend/tests/`
-
-2. **Frontend Component:**
-   - Create component in `src/components/`
-   - Import in `page.tsx`
-   - Add types to `lib/types.ts`
-
-### Code Style
-
-- **Backend:** Black formatter, type hints
-- **Frontend:** ESLint, Prettier
-- **Commits:** Conventional commits
-
-## 🙏 Acknowledgments
-
-- **Groq** - Fast LLM inference
-- **LangChain** - RAG framework
-- **FastAPI** - Modern Python API framework
-- **Next.js** - React framework
-
-
----
-
-**⭐ Features Implemented:**
-- ✅ JWT Authentication
-- ✅ Document Upload (PDF/TXT)
-- ✅ AI-Powered Q&A
-- ✅ Chat History
-- ✅ Source Citations
-- ✅ @filename Search
-- ✅ Background Processing
-- ✅ Retry Logic
-- ✅ Rate Limiting
-- ✅ User Isolation
-- ✅ Unit Tests
-- ✅ Docker Support
-- ✅ Modular Architecture
