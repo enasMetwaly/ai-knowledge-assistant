@@ -25,6 +25,7 @@ cd ai-knowledge-assistant
 # 2. Create .env file
 cat > backend/.env << EOF
 GROQ_API_KEY=your_groq_api_key_here
+NEXT_PUBLIC_BACKEND_URL=http://backend:8000
 EOF
 
 # 3. Start everything
@@ -61,6 +62,7 @@ pip install -r requirements.txt
 
 # Create .env file
 echo "GROQ_API_KEY=your_groq_api_key_here" > .env
+
 echo NEXT_PUBLIC_BACKEND_URL=http://backend:8000 > .env
 
 # Run server
