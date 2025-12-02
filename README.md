@@ -7,19 +7,6 @@ A full-stack AI-powered knowledge base system built with FastAPI, Next.js, and G
 [![Groq](https://img.shields.io/badge/Groq-LLM-purple)](https://groq.com/)
 [![Docker](https://img.shields.io/badge/Docker-Ready-blue)](https://www.docker.com/)
 
-## ✨ Features
-
-- **🔐 JWT Authentication** - Secure user login with token-based auth
-- **📁 Document Upload** - Support for PDF and TXT files
-- **🤖 AI Q&A** - Powered by Groq's Llama 3.1 model
-- **💬 Chat History** - Persistent conversation storage per user
-- **📚 Source Citations** - View exact document chunks used for answers
-- **🔍 @filename Search** - Target specific documents with `@filename` syntax
-- **🔄 Background Processing** - Async file processing for instant uploads
-- **♻️ Retry Logic** - Automatic retry with exponential backoff
-- **🔒 User Isolation** - Each user has private documents and chat history
-- **⚡ Rate Limiting** - 10 requests/minute protection
-- **🧪 Unit Tests** - Comprehensive test coverage
 
 ## 🚀 Quick Start
 
@@ -281,4 +268,17 @@ docker compose exec backend pytest -v
 # Manual
 pytest -v
 ```
+## ✨ Features
+
+- **🔐 JWT Authentication** - Secure user login with token-based auth
+- **📁 Document Upload** - Support for PDF and TXT files
+- **🤖 AI Q&A** - Powered by Groq's Llama 3.1 model
+- **💬 Chat History** - Persistent conversation storage per user
+- **📚 Source Citations** - View exact document chunks used for answers
+- **🔍 @filename Search** - Target specific documents with `@filename` syntax
+- **🔄 Background Processing** - Async file processing for instant uploads
+- **♻️ Retry Logic** - Automatic retry with exponential backoff
+- **🔒 User Isolation** - Each user has private documents and chat history
+- **⚡ Rate Limiting** - 10 requests/minute protection
+- **🧪 Unit Tests** - Comprehensive test coverage
 
