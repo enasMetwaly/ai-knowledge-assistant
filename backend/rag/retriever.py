@@ -10,13 +10,14 @@ def query_with_retry(user_id: str, question: str, filename_filter: str | None = 
     if not user_dir.exists():
         raise ValueError("No documents uploaded yet")
 
-    # ✅ Create new Chroma instance every time — ensures clean isolation
+    #  Create  or load per-user vectorstore
     vectorstore = Chroma(
         persist_directory=str(user_dir),
         embedding_function=embeddings,
         collection_name=f"user_{user_id}"  # ← CRITICAL: Unique collection per user
     )
 
+    #search top 4 realvent chanks
     search_kwargs = {"k": 4}
     if filename_filter:
         search_kwargs["filter"] = {"source": filename_filter}

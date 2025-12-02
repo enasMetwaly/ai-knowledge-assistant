@@ -162,7 +162,7 @@ export default function ChatTab() {
               💡 Press <kbd className="px-2 py-1 bg-gray-100 rounded text-xs">Enter</kbd> to send
             </p>
             <p className="text-xs text-gray-400">
-              💡 Tip: Use <kbd className="px-2 py-1 bg-gray-100 rounded text-xs">@filename</kbd> to search specific file
+              💡 Tip: Use <kbd className="px-2 py-1 bg-gray-100 rounded text-xs">@filename at start</kbd> to search specific file
             </p>
           </div>
         </div>

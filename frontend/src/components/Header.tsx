@@ -28,7 +28,7 @@ export default function Header({ user, onLogout }: HeaderProps) {
       </div>
       
       <h1 className="text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-blue-600 mb-3">
-        🧠 Nixai AI Assistant
+        🧠 Knowledge AI Assistant
       </h1>
       <p className="text-gray-600 text-lg">
         Powered by <span className="font-semibold text-purple-600">Groq LLM</span> ⚡

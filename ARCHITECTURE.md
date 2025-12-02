@@ -158,7 +158,6 @@ backend/
           ┌─────────────────┐
           │  Text Splitter  │
           │  (500 chars)    │
-          │  (50 overlap)   │
           └────────┬────────┘
                    │
                    ▼
@@ -287,7 +286,7 @@ docs_metadata.json             # Shared metadata (user_id indexed)
 
 ---
 
-### 6. Key Design Patterns
+### 6. Key Design 
 
 #### Background Processing
 ```python

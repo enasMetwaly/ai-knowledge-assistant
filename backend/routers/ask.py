@@ -50,7 +50,7 @@ async def ask(
     try:
         user_id = current_user["user_id"]
 
-        # Query with retry logic
+        # Query with retry logic call retival Ragpipline 
         result = query_with_retry(user_id, question, target_file)
         answer = result["result"]
         sources = [

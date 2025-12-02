@@ -81,9 +81,6 @@ export default function Home() {
           {activeTab === 'docs' && <DocsTab />}
         </div>
 
-        <footer className="text-center mt-16 text-gray-500 text-sm">
-          Built for Nixai Labs Hiring Challenge 🚀
-        </footer>
       </div>
     </div>
   );

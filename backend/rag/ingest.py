@@ -29,9 +29,9 @@ def ingest_document(filepath: str, user_id: str, original_name: str):
     embedding_function=embeddings,
     collection_name=f"user_{user_id}"
 )
-        vectorstore.add_documents(chunks)  # Auto-persists, no need for .persist()
+        vectorstore.add_documents(chunks)  # Auto-persists
 
-        # Update shared metadata (safe — has user_id)
+        # Update shared metadata (safe — has user_id)front tab
         safe_key = f"{user_id}_{original_name.replace(' ', '_')}"
         metadata = {}
         if METADATA_FILE.exists():

@@ -63,9 +63,7 @@ def test_ask_with_auth():
     r = client.post("/ask", json={"question": "hello"}, headers={"Authorization": f"Bearer {token}"})
     assert r.status_code == 200
 
-# ──────────────────────────────────────────────────────────────
-# 8. Test file upload actually creates metadata
-# ──────────────────────────────────────────────────────────────
+# 8 Test file upload actually creates metadata(docs tap)
 def test_upload_creates_metadata():
     # Login
     login = client.post("/auth/login", data={"username": "user@example.com", "password": "password123"})
@@ -90,9 +88,7 @@ def test_upload_creates_metadata():
     assert len(docs) >= 1
     assert any(doc["name"] == "test_ai.txt" for doc in docs)
 
-# ──────────────────────────────────────────────────────────────
 # 9. Test @filename filtering from real route
-# ──────────────────────────────────────────────────────────────
 def test_ask_with_filename_filter_via_route():
     login = client.post("/auth/login", data={"username": "user@example.com", "password": "password123"})
     token = login.json()["access_token"]
