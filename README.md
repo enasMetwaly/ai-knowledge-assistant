@@ -228,22 +228,13 @@ SECRET_KEY=your_jwt_secret_key  # Optional, has default
 
 Full API documentation: http://localhost:8000/docs
 
-## 🔒 Security Features
+## Security Features
 
 - **JWT Authentication** - Token-based auth with 12-hour expiry
 - **Password Hashing** - bcrypt with salt
 - **User Isolation** - Separate vectorstores per user
 - **Rate Limiting** - 10 requests/minute
 - **CORS Protection** - Restricted origins
-- **Input Validation** - Pydantic models
-
-## ⚡ Performance
-
-- **Background Processing** - File uploads return instantly
-- **Retry Logic** - Automatic retry on API failures
-- **Async Operations** - Non-blocking file processing
-- **Vector Search** - Fast semantic search with ChromaDB
-- **Optimized Embeddings** - FakeEmbeddings for instant setup
 
 ## 🐛 Troubleshooting
 
