@@ -202,7 +202,7 @@ SECRET_KEY=your_jwt_secret_key  # Optional, has default
 | `POST` | `/ask` | Ask question |
 | `GET` | `/chat-history` | Get chat history |
 
-Full API documentation: http://localhost:8000/docs
+Full API documentation(swagger ui): http://localhost:8000/docs
 
 ## Security Features
 
