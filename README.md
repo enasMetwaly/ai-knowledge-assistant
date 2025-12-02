@@ -1,4 +1,4 @@
-# 🧠 Nixai AI Knowledge Assistant
+# 🧠  AI Knowledge Assistant
 
 A full-stack AI-powered knowledge base system built with FastAPI, Next.js, and Groq LLM. Upload documents, ask questions, and get AI-generated answers with source citations.
 
