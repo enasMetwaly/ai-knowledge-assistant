@@ -43,6 +43,15 @@ EOF
 # 3. Start everything
 docker-compose up --build
 
+# Stop containers (keep images)
+docker compose down
+
+# Rebuild from scratch if needed
+docker compose down && docker compose up --build
+
+# Remove all images and rebuild fresh (cleanup everything)
+docker compose down --rmi all && docker compose up --build
+
 # 4. Access the app
 Frontend: http://localhost:3000
 Backend API: http://localhost:8000
