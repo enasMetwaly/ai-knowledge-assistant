@@ -1,4 +1,4 @@
-# 🏗️ System Architecture
+#  System Architecture
 
 ## Overview
 
@@ -93,13 +93,6 @@ src/
     └── api.ts             # API client
 ```
 
-**Key Features:**
-- Single-page application (SPA)
-- Client-side routing
-- Token-based authentication
-- Real-time chat history
-- File upload with progress
-- Source document viewer
 
 ---
 
@@ -107,7 +100,6 @@ src/
 
 **Technology:**
 - FastAPI for async Python web framework
-- Pydantic for data validation
 - JWT for authentication
 - LangChain for RAG pipeline
 
@@ -368,38 +360,7 @@ Layer 5: Input Validation
 
 ---
 
-### 8. Performance Optimizations
-
-| Optimization | Implementation | Benefit |
-|-------------|----------------|---------|
-| **Background Tasks** | FastAPI BackgroundTasks | Instant upload response |
-| **Async Operations** | async/await throughout | Non-blocking I/O |
-| **Vector Search** | ChromaDB similarity search | Fast semantic retrieval |
-| **Fake Embeddings** | FakeEmbeddings(size=384) | Instant setup (no downloads) |
-| **Retry Logic** | Tenacity with exp backoff | Resilient to transient failures |
-| **Rate Limiting** | SlowAPI | Prevents abuse |
-
----
-
-### 9. Error Handling Strategy
-
-```
-Frontend Error Handling:
-├── Network errors → Show user-friendly message
-├── 401 Unauthorized → Redirect to login
-├── 500 Server Error → Display error, suggest retry
-└── Validation errors → Highlight form fields
-
-Backend Error Handling:
-├── ValueError (no docs) → Return empty result with message
-├── HTTPException → Return appropriate status code
-├── Retry exhausted → Return 500 with error message
-└── Unexpected errors → Log + return generic error
-```
-
----
-
-### 10. Testing Architecture
+### 8. Testing Architecture
 
 ```
 tests/
