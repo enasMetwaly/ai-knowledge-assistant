@@ -1,6 +1,6 @@
 # backend/routers/ask.py
-from fastapi import APIRouter, Depends
-from pydantic import BaseModel
+from fastapi import APIRouter, Depends, Request
+from pydantic import BaseModel, Field
 import re
 import json
 from datetime import datetime, timezone
@@ -9,23 +9,24 @@ from pathlib import Path
 from dependencies import CurrentUser
 from rag.retriever import query_with_retry
 from core.config import CHAT_HISTORY_DIR
-from pydantic import BaseModel, Field
-
-
+from limiter import limiter
 
 router = APIRouter(tags=["Chat"])
 
 class AskRequest(BaseModel):
-    # question: str just change
-      question: str = Field(
+    question: str = Field(
         ...,
-        example="@ai.txt What is Ai?",
-        description="Your question. Use @filename to query a specific document only."
+        description="Your question. Use @filename to query a specific document only.",
+        json_schema_extra={"example": "@ai.txt What is Ai?"}
     )
 
 @router.post("/ask")
-async def ask(request: AskRequest, current_user: CurrentUser):
-    #just """ doc string added 
+@limiter.limit("10/minute") 
+async def ask(
+    request: Request,  # ← Required by SlowAPI
+    ask_request: AskRequest,  # ← Renamed to avoid conflict
+    current_user: CurrentUser
+):
     """
     Ask a question about your uploaded documents.
 
@@ -33,7 +34,7 @@ async def ask(request: AskRequest, current_user: CurrentUser):
     - Rate limited to 10 requests/minute
     - Returns AI answer + source chunks
     """
-    full_q = request.question.strip()
+    full_q = ask_request.question.strip()
     if not full_q:
         return {"answer": "Ask something!", "sources": []}
 
@@ -49,7 +50,7 @@ async def ask(request: AskRequest, current_user: CurrentUser):
     try:
         user_id = current_user["user_id"]
 
-        # Graceful no-docs case
+        # Query with retry logic
         result = query_with_retry(user_id, question, target_file)
         answer = result["result"]
         sources = [

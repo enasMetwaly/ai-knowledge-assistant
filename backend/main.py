@@ -8,23 +8,30 @@ from routers.ask import router as ask_router
 from routers.docs import router as docs_router
 from routers.chat_history import router as chat_history_router
 
+
 # Rate limiting
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 
+from fastapi import Request
+from fastapi.responses import JSONResponse
+from limiter import limiter
 app = FastAPI(
     title="Nixai AI Assistant",
     description="A secure, per-user RAG system with Groq LLM, background processing, rate limiting, and full user isolation.",
 )
 
 # Limiter setup
-limiter = Limiter(key_func=get_remote_address)
 app.state.limiter = limiter
 app.add_middleware(SlowAPIMiddleware)  # ← THIS IS THE KEY
-app.add_exception_handler(RateLimitExceeded, lambda request, exc: {"detail": "Rate limit exceeded: 10 per minute"})
-
+@app.exception_handler(RateLimitExceeded)
+async def rate_limit_exceeded_handler(request: Request, exc: RateLimitExceeded):
+    return JSONResponse(
+        status_code=429,
+        content={"detail": "Rate limit exceeded: 10 requests per minute"}
+    )
 # CORS
 app.add_middleware(
     CORSMiddleware,
