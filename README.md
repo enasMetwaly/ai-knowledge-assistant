@@ -82,20 +82,6 @@ npm run dev
 # Frontend runs at http://localhost:3000
 ```
 
-## 🧪 Testing
-
-```bash
-cd backend
-
-# Run all tests
-pytest
-
-# Run with coverage
-pytest --cov=. --cov-report=html
-
-# Run specific test file
-pytest tests/test_retriever.py -v
-```
 
 ## 📖 Usage
 
@@ -255,7 +241,7 @@ Should be http://localhost:8000
 - File upload pipeline
 - Chat history persistence
 
-**Run tests:**
+## 🧪 Testing
 ```bash
 
 cd backend
