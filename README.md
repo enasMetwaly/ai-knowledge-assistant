@@ -61,6 +61,7 @@ pip install -r requirements.txt
 
 # Create .env file
 echo "GROQ_API_KEY=your_groq_api_key_here" > .env
+echo NEXT_PUBLIC_BACKEND_URL=http://backend:8000 > .env
 
 # Run server
 uvicorn main:app --reload
