@@ -42,7 +42,7 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
       <div className="max-w-md w-full">
         <div className="text-center mb-8">
           <h1 className="text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-blue-600 mb-3">
-            🧠 Nixai AI Assistant
+            🧠 Knowledge AI Assistant
           </h1>
           <p className="text-gray-600">Please login to continue</p>
           <p className="text-sm text-purple-600 mt-2">⚡ Powered by Groq LLM</p>
